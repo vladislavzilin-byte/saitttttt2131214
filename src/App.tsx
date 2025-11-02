@@ -1,11 +1,3 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
-import Shop from './pages/Shop'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Success from './pages/Success'
-import Cancel from './pages/Cancel'
 import React, { Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useLocation, Link } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
@@ -18,19 +10,6 @@ import Portfolio from './pages/Portfolio'
 import Shop from './pages/Shop'
 import Training from './pages/Training'
 import Contacts from './pages/Contacts'
-
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/shop" element={<Shop />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/success" element={<Success />} />
-      <Route path="/cancel" element={<Cancel />} />
-    </Routes>
-  )
-}
 
 type Lang = 'lt' | 'en' | 'ru'
 const palette = { bg:'#000000' }
@@ -90,17 +69,4 @@ export default function App(){
 }
 function PageWrap({children}:{children:React.ReactNode}){
   return(<motion.div initial={{opacity:0,x:40}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-40}} transition={{duration:0.45}}><header className='fixed top-3 left-4 z-50'><Link to='/' className='px-3 py-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xl text-white/80 hover:text-white'>← Home</Link></header>{children}</motion.div>)
-}
-
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/shop" element={<Shop />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/success" element={<Success />} />
-      <Route path="/cancel" element={<Cancel />} />
-    </Routes>
-  )
 }
