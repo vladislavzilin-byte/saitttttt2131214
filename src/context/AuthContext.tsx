@@ -53,7 +53,7 @@ function saveSession(userId: string | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
-  // on mount, restore session
+  // восстановить сессию при загрузке
   useEffect(() => {
     const users = loadUsers()
     const currentId = loadSession()
@@ -71,22 +71,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone?: string
   }) {
     const users = loadUsers()
-    const exists = users.find(u => u.email.toLowerCase() == data.email.toLowerCase())
+    const exists = users.find(u => u.email.toLowerCase() === data.email.toLowerCase())
     if (exists) {
       return { ok: false, error: 'Email already registered' }
     }
+
     const newUser: User = {
       id: crypto.randomUUID(),
       name: data.name,
       email: data.email,
-      password: data.password, // NOTE: prod would hash
+      password: data.password, // NOTE: в проде надо хэшировать
       instagram: data.instagram || '',
       phone: data.phone || '',
     }
+
     users.push(newUser)
     saveUsers(users)
     saveSession(newUser.id)
     setUser(newUser)
+
     return { ok: true }
   }
 
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!found) {
       return { ok: false, error: 'Wrong email or password' }
     }
+
     saveSession(found.id)
     setUser(found)
     return { ok: true }
@@ -117,6 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
+  if (!ctx) {
+    throw new Error('useAuth must be used inside <AuthProvider>')
+  }
   return ctx
 }

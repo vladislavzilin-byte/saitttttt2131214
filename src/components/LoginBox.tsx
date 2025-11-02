@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom'
 export default function LoginBox() {
   const { user, login, logout } = useAuth()
   const navigate = useNavigate()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +24,7 @@ export default function LoginBox() {
 
   if (user) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl p-4 w-full max-w-xs text-sm text-white/80 shadow-[0_30px_120px_rgba(255,255,255,0.2)]">
+      <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl p-4 w-full max-w-xs text-sm text-white/80 shadow-[0_30px_120px_-10px_rgba(255,255,255,0.2)]">
         <div className="text-white font-semibold mb-1">Hi, {user.name}</div>
         <div className="text-white/60 mb-3 text-xs leading-relaxed">
           <div className="truncate">Email: {user.email}</div>
@@ -49,9 +50,10 @@ export default function LoginBox() {
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl p-4 w-full max-w-xs text-sm text-white/80 shadow-[0_30px_120px_rgba(255,255,255,0.2)]">
+    <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl p-4 w-full max-w-xs text-sm text-white/80 shadow-[0_30px_120px_-10px_rgba(255,255,255,0.2)]">
       <div className="text-white text-sm font-semibold mb-2">Sign in</div>
       {error && <div className="text-red-400 text-[11px] mb-2">{error}</div>}
+
       <form className="space-y-2 mb-2" onSubmit={handleSubmit}>
         <input
           type="email"
@@ -76,6 +78,7 @@ export default function LoginBox() {
           Login
         </button>
       </form>
+
       <div className="text-[11px] text-white/40">
         No account?
         <Link
