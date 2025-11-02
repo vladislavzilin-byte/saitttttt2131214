@@ -58,10 +58,8 @@ const PRODUCTS: Product[] = [
   },
 ]
 
-// util keys
 const LS_CART_KEY = 'izhairtrend_cart_v1'
 
-// ---------- helpers for localStorage ----------
 function loadCartFromStorage(): CartItem[] {
   if (typeof window === 'undefined') return []
   try {
@@ -83,19 +81,16 @@ function saveCartToStorage(cart: CartItem[]) {
   }
 }
 
-// ---------- main component ----------
 export default function Shop() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [isClient, setIsClient] = useState(false)
 
-  // при первом рендере в браузере — восстановить корзину
   useEffect(() => {
     setIsClient(true)
     const restored = loadCartFromStorage()
     setCart(restored)
   }, [])
 
-  // каждый раз когда корзина меняется — сохраняем
   useEffect(() => {
     if (!isClient) return
     saveCartToStorage(cart)
@@ -147,70 +142,46 @@ export default function Shop() {
     0
   )
 
-  // ---------- checkout mock logic ----------
-  function handleCheckout() {
+  async function handleCheckout(provider: 'stripe' | 'paypal') {
     if (cart.length === 0) {
       alert('Корзина пуста 🙃')
       return
     }
 
-    // 1) Stripe-style line_items
-    // Обычно ты отправляешь это на backend, он создаёт Stripe Checkout Session
-    const stripePayload = {
-      line_items: cart.map((item) => ({
-        name: item.product.name,
-        unit_amount: Math.round(item.product.price * 100), // cents
-        quantity: item.qty,
-        currency: 'eur',
-      })),
+    const line_items = cart.map((item) => ({
+      name: item.product.name,
+      unit_amount: Math.round(item.product.price * 100),
+      quantity: item.qty,
       currency: 'eur',
-      total_eur: total.toFixed(2),
-    }
+    }))
 
-    // 2) PayPal-style purchase_units
-    // Backend создаёт PayPal order и возвращает ссылку approve_url
-    const paypalPayload = {
-      purchase_units: [
+    try {
+      const res = await fetch(
+        provider === 'stripe'
+          ? 'http://localhost:5000/api/checkout/stripe'
+          : 'http://localhost:5000/api/checkout/paypal',
         {
-          amount: {
-            currency_code: 'EUR',
-            value: total.toFixed(2),
-            breakdown: {
-              item_total: {
-                currency_code: 'EUR',
-                value: total.toFixed(2),
-              },
-            },
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          items: cart.map((item) => ({
-            name: item.product.name,
-            unit_amount: {
-              currency_code: 'EUR',
-              value: item.product.price.toFixed(2),
-            },
-            quantity: String(item.qty),
-          })),
-        },
-      ],
+          body: JSON.stringify({ line_items }),
+        }
+      )
+
+      const data = await res.json()
+
+      if (!data.ok) {
+        console.error(data)
+        alert('Payment init error: ' + data.error)
+        return
+      }
+
+      window.location.href = data.checkout_url
+    } catch (err) {
+      console.error(err)
+      alert('Payment request failed')
     }
-
-    console.log('Stripe payload →', stripePayload)
-    console.log('PayPal payload →', paypalPayload)
-
-    alert(
-      [
-        'Checkout init ✅',
-        '',
-        'Вот что мы бы отправили на сервер:',
-        '',
-        '• Stripe line_items (для createCheckoutSession)',
-        '• PayPal purchase_units (для createOrder)',
-        '',
-        'Дальше backend отвечает URL на оплату и мы делаем redirect.',
-        '',
-        'Смотри консоль браузера 👉 console.log',
-      ].join('\n')
-    )
   }
 
   return (
@@ -307,9 +278,7 @@ export default function Shop() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="text-sm font-medium leading-snug">
-                      <div className="text-white">
-                        {item.product.name}
-                      </div>
+                      <div className="text-white">{item.product.name}</div>
                       <div className="text-white/50 text-xs">
                         €{item.product.price.toFixed(2)} each
                       </div>
@@ -354,20 +323,31 @@ export default function Shop() {
                 <div>€{total.toFixed(2)}</div>
               </div>
 
-              {/* checkout button */}
-              <button
-                className="w-full relative overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium text-white bg-white/15 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all active:scale-[0.98] shadow-[0_30px_120px_rgba(255,255,255,0.25)]"
-                onClick={handleCheckout}
-              >
-                <span className="relative z-10 tracking-wide">
-                  Checkout (Stripe / PayPal)
-                </span>
-                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity" />
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  className="w-full relative overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium text-white bg-white/15 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all active:scale-[0.98] shadow-[0_30px_120px_rgba(255,255,255,0.25)]"
+                  onClick={() => handleCheckout('stripe')}
+                >
+                  <span className="relative z-10 tracking-wide">
+                    Pay with Stripe 💳
+                  </span>
+                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity" />
+                </button>
 
-              <p className="text-[10px] text-white/40 leading-relaxed tracking-wide text-center">
-                Secure checkout · SSL · No card data stored on site
-              </p>
+                <button
+                  className="w-full relative overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium text-white bg-white/15 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all active:scale-[0.98] shadow-[0_30px_120px_rgba(255,255,255,0.25)]"
+                  onClick={() => handleCheckout('paypal')}
+                >
+                  <span className="relative z-10 tracking-wide">
+                    Pay with PayPal 🅿️
+                  </span>
+                  <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity" />
+                </button>
+
+                <p className="text-[10px] text-white/40 leading-relaxed tracking-wide text-center">
+                  Secure checkout · SSL · No card data stored on site
+                </p>
+              </div>
             </div>
           )}
         </div>
