@@ -153,12 +153,11 @@ export default function Shop() {
 
     const line_items = cart.map((item) => ({
       name: item.product.name,
-      unit_amount: Math.round(item.product.price * 100), // euro -> cents
+      unit_amount: Math.round(item.product.price * 100),
       quantity: item.qty,
       currency: 'eur',
     }))
 
-    // attach logged-in user info so backend email sees Instagram / phone
     const customer_hint = user
       ? {
           name: user.name,
@@ -169,32 +168,32 @@ export default function Shop() {
       : null
 
     try {
-      const res = await fetch(
-        provider === 'stripe'
-          ? 'http://localhost:5000/api/checkout/stripe'
-          : 'http://localhost:5000/api/checkout/paypal',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ line_items, customer_hint }),
+        const res = await fetch(
+          provider === 'stripe'
+            ? 'http://localhost:5000/api/checkout/stripe'
+            : 'http://localhost:5000/api/checkout/paypal',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ line_items, customer_hint }),
+          }
+        )
+
+        const data = await res.json()
+
+        if (!data.ok) {
+          console.error(data)
+          alert('Payment init error: ' + data.error)
+          return
         }
-      )
 
-      const data = await res.json()
-
-      if (!data.ok) {
-        console.error(data)
-        alert('Payment init error: ' + data.error)
-        return
+        window.location.href = data.checkout_url
+      } catch (err) {
+        console.error(err)
+        alert('Payment request failed')
       }
-
-      window.location.href = data.checkout_url
-    } catch (err) {
-      console.error(err)
-      alert('Payment request failed')
-    }
   }
 
   return (

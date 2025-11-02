@@ -53,7 +53,7 @@ function saveSession(userId: string | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
-  // восстановить сессию при загрузке
+  // restore session on mount
   useEffect(() => {
     const users = loadUsers()
     const currentId = loadSession()
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: crypto.randomUUID(),
       name: data.name,
       email: data.email,
-      password: data.password, // NOTE: в проде надо хэшировать
+      password: data.password, // NOTE: hash in prod
       instagram: data.instagram || '',
       phone: data.phone || '',
     }
@@ -101,7 +101,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!found) {
       return { ok: false, error: 'Wrong email or password' }
     }
-
     saveSession(found.id)
     setUser(found)
     return { ok: true }
