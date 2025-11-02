@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 type Product = {
   id: number
@@ -14,96 +15,51 @@ type CartItem = {
 }
 
 const PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: 'Volume Hold Spray',
-    desc: 'Strong hold finishing spray for event hairstyles.',
-    price: 19.99,
-    image: '/spray.png',
-  },
-  {
-    id: 2,
-    name: 'Shine Serum',
-    desc: 'Lightweight serum for glossy, frizz-free finish.',
-    price: 24.5,
-    image: '/serum.png',
-  },
-  {
-    id: 3,
-    name: 'Heat Shield 230°',
-    desc: 'Thermal protection spray for curling/ironing.',
-    price: 17.0,
-    image: '/heatshield.png',
-  },
-  {
-    id: 4,
-    name: 'Texturizing Powder',
-    desc: 'Instant root lift + volume for braids & updos.',
-    price: 14.75,
-    image: '/powder.png',
-  },
-  {
-    id: 5,
-    name: 'Pro Bobby Pins (50pcs)',
-    desc: 'Salon-grade matte black pins. Doesn’t slip.',
-    price: 9.5,
-    image: '/pins.png',
-  },
-  {
-    id: 6,
-    name: 'Luxury Hair Comb',
-    desc: 'Carbon antistatic wide-tooth styling comb.',
-    price: 12.0,
-    image: '/comb.png',
-  },
+  { id: 1, name: 'Volume Hold Spray', desc: 'Strong hold finishing spray for event hairstyles.', price: 19.99, image: '/spray.png' },
+  { id: 2, name: 'Shine Serum', desc: 'Lightweight serum for glossy, frizz-free finish.', price: 24.5, image: '/serum.png' },
+  { id: 3, name: 'Heat Shield 230°', desc: 'Thermal protection spray for curling/ironing.', price: 17.0, image: '/heatshield.png' },
+  { id: 4, name: 'Texturizing Powder', desc: 'Instant root lift + volume for braids & updos.', price: 14.75, image: '/powder.png' },
+  { id: 5, name: 'Pro Bobby Pins (50pcs)', desc: 'Salon-grade matte black pins. Doesn’t slip.', price: 9.5, image: '/pins.png' },
+  { id: 6, name: 'Luxury Hair Comb', desc: 'Carbon antistatic wide-tooth styling comb.', price: 12.0, image: '/comb.png' },
 ]
 
 const LS_CART_KEY = 'izhairtrend_cart_v1'
 
-function loadCartFromStorage(): CartItem[] {
-  if (typeof window === 'undefined') return []
+function loadCart() {
   try {
-    const raw = window.localStorage.getItem(LS_CART_KEY)
+    const raw = localStorage.getItem(LS_CART_KEY)
     if (!raw) return []
     return JSON.parse(raw)
-  } catch (e) {
-    console.warn('Failed to parse cart from localStorage:', e)
+  } catch {
     return []
   }
 }
-
-function saveCartToStorage(cart: CartItem[]) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(LS_CART_KEY, JSON.stringify(cart))
-  } catch (e) {
-    console.warn('Failed to save cart to localStorage:', e)
-  }
+function saveCart(c: CartItem[]) {
+  localStorage.setItem(LS_CART_KEY, JSON.stringify(c))
 }
 
 export default function Shop() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [isClient, setIsClient] = useState(false)
 
+  const { user } = useAuth()
+
   useEffect(() => {
     setIsClient(true)
-    const restored = loadCartFromStorage()
+    const restored = loadCart()
     setCart(restored)
   }, [])
 
   useEffect(() => {
-    if (!isClient) return
-    saveCartToStorage(cart)
+    if (isClient) saveCart(cart)
   }, [cart, isClient])
 
   function addToCart(product: Product) {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id)
+    setCart(prev => {
+      const existing = prev.find(i => i.product.id === product.id)
       if (existing) {
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, qty: item.qty + 1 }
-            : item
+        return prev.map(i =>
+          i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i
         )
       } else {
         return [...prev, { product, qty: 1 }]
@@ -111,36 +67,25 @@ export default function Shop() {
     })
   }
 
-  function inc(productId: number) {
-    setCart((prev) =>
-      prev.map((item) =>
-        item.product.id === productId
-          ? { ...item, qty: item.qty + 1 }
-          : item
-      )
+  function inc(id: number) {
+    setCart(prev =>
+      prev.map(i => (i.product.id === id ? { ...i, qty: i.qty + 1 } : i))
     )
   }
-
-  function dec(productId: number) {
-    setCart((prev) =>
+  function dec(id: number) {
+    setCart(prev =>
       prev
-        .map((item) =>
-          item.product.id === productId
-            ? { ...item, qty: item.qty - 1 }
-            : item
+        .map(i =>
+          i.product.id === id ? { ...i, qty: i.qty - 1 } : i
         )
-        .filter((item) => item.qty > 0)
+        .filter(i => i.qty > 0)
     )
   }
-
-  function removeItem(productId: number) {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId))
+  function removeItem(id: number) {
+    setCart(prev => prev.filter(i => i.product.id !== id))
   }
 
-  const total = cart.reduce(
-    (sum, item) => sum + item.product.price * item.qty,
-    0
-  )
+  const total = cart.reduce((sum, i) => sum + i.product.price * i.qty, 0)
 
   async function handleCheckout(provider: 'stripe' | 'paypal') {
     if (cart.length === 0) {
@@ -148,12 +93,22 @@ export default function Shop() {
       return
     }
 
-    const line_items = cart.map((item) => ({
+    const line_items = cart.map(item => ({
       name: item.product.name,
       unit_amount: Math.round(item.product.price * 100),
       quantity: item.qty,
       currency: 'eur',
     }))
+
+    // attach user info if logged in:
+    const customer_hint = user
+      ? {
+          name: user.name,
+          email: user.email,
+          instagram: user.instagram,
+          phone: user.phone,
+        }
+      : null
 
     try {
       const res = await fetch(
@@ -162,18 +117,15 @@ export default function Shop() {
           : 'http://localhost:5000/api/checkout/paypal',
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ line_items }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ line_items, customer_hint }),
         }
       )
 
       const data = await res.json()
-
       if (!data.ok) {
-        console.error(data)
         alert('Payment init error: ' + data.error)
+        console.error(data)
         return
       }
 
@@ -186,7 +138,6 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-10 md:py-16 flex flex-col md:flex-row gap-8 md:gap-10">
-      {/* PRODUCTS */}
       <div className="w-full md:flex-1">
         <h1 className="text-3xl font-semibold mb-2 flex items-baseline gap-3">
           <span>Shop</span>
@@ -195,35 +146,23 @@ export default function Shop() {
           </span>
         </h1>
         <p className="text-white/60 mb-8 max-w-lg text-sm leading-relaxed">
-          Официальный магазин IZ HAIR TREND. Добавляй в корзину, сумма
-          сохраняется даже после перезагрузки 💅.
+          Официальный магазин IZ HAIR TREND. Добавляй в корзину, сохраним
+          твой заказ даже после перезагрузки. {user ? `(${user.name}, welcome ❤️)` : ''}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-          {PRODUCTS.map((p) => (
+          {PRODUCTS.map(p => (
             <div
               key={p.id}
               className="group relative rounded-3xl border border-white/10 bg-white/[0.07] backdrop-blur-xl p-5 flex flex-col shadow-[0_30px_120px_-10px_rgba(255,255,255,0.15)]"
             >
-              {/* product image */}
               <div className="rounded-2xl bg-gradient-to-br from-white/20 via-white/5 to-transparent border border-white/10 aspect-[4/3] mb-4 flex items-center justify-center overflow-hidden">
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    className="w-full h-full object-contain p-4"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center text-xs text-white/60 font-light tracking-wide opacity-80">
-                    <div className="text-base font-medium text-white">
-                      {p.name}
-                    </div>
-                    <div className="text-[10px] uppercase tracking-wider text-white/40">
-                      izhairtrend
-                    </div>
-                  </div>
-                )}
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  className="w-full h-full object-contain p-4"
+                  draggable={false}
+                />
               </div>
 
               <div className="flex-1 flex flex-col">
@@ -253,7 +192,6 @@ export default function Shop() {
         </div>
       </div>
 
-      {/* CART */}
       <div className="w-full md:w-80 lg:w-96 md:sticky md:top-10 self-start">
         <div className="rounded-3xl border border-white/10 bg-white/[0.07] backdrop-blur-xl p-6 shadow-[0_40px_140px_-10px_rgba(255,255,255,0.2)]">
           <div className="flex items-baseline justify-between mb-4">
@@ -271,7 +209,7 @@ export default function Shop() {
             </div>
           ) : (
             <div className="space-y-4">
-              {cart.map((item) => (
+              {cart.map(item => (
                 <div
                   key={item.product.id}
                   className="rounded-2xl border border-white/10 bg-black/30 p-4 flex flex-col gap-3"

@@ -6,6 +6,7 @@ export type User = {
   email: string
   instagram?: string
   phone?: string
+  password?: string
 }
 
 type AuthContextType = {
@@ -26,7 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 const USERS_KEY = 'iz_users_v1'
 const SESSION_KEY = 'iz_session_v1'
 
-function loadUsers() {
+function loadUsers(): User[] {
   try {
     const raw = localStorage.getItem(USERS_KEY)
     if (!raw) return []
@@ -36,11 +37,11 @@ function loadUsers() {
   }
 }
 
-function saveUsers(users: any[]) {
+function saveUsers(users: User[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users))
 }
 
-function loadSession() {
+function loadSession(): string | null {
   return localStorage.getItem(SESSION_KEY)
 }
 
@@ -52,23 +53,35 @@ function saveSession(userId: string | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
+  // on mount, restore session
   useEffect(() => {
     const users = loadUsers()
     const currentId = loadSession()
     if (currentId) {
-      const u = users.find((u: any) => u.id === currentId)
+      const u = users.find(u => u.id === currentId)
       if (u) setUser(u)
     }
   }, [])
 
-  async function register(data: any) {
+  async function register(data: {
+    name: string
+    email: string
+    password: string
+    instagram?: string
+    phone?: string
+  }) {
     const users = loadUsers()
-    const exists = users.find((u: any) => u.email.toLowerCase() === data.email.toLowerCase())
-    if (exists) return { ok: false, error: 'Email already registered' }
-
-    const newUser = {
+    const exists = users.find(u => u.email.toLowerCase() == data.email.toLowerCase())
+    if (exists) {
+      return { ok: false, error: 'Email already registered' }
+    }
+    const newUser: User = {
       id: crypto.randomUUID(),
-      ...data,
+      name: data.name,
+      email: data.email,
+      password: data.password, // NOTE: prod would hash
+      instagram: data.instagram || '',
+      phone: data.phone || '',
     }
     users.push(newUser)
     saveUsers(users)
@@ -80,9 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string) {
     const users = loadUsers()
     const found = users.find(
-      (u: any) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
     )
-    if (!found) return { ok: false, error: 'Wrong email or password' }
+    if (!found) {
+      return { ok: false, error: 'Wrong email or password' }
+    }
     saveSession(found.id)
     setUser(found)
     return { ok: true }
@@ -93,7 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, login, logout, register }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, login, logout, register }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

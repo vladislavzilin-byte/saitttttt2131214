@@ -1,1 +1,8 @@
-@tailwind base;@tailwind components;@tailwind utilities;:root{color-scheme:dark;}html,body,#root{height:100%;}body{@apply bg-black text-white antialiased;}*{box-sizing:border-box;}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-black text-white antialiased;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Helvetica Neue", sans-serif;
+}
