@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 type Product = {
   id: number
   name: string
   desc: string
   price: number
-  image?: string // optional, на будущее (фото товара)
+  image: string
 }
 
 type CartItem = {
@@ -19,41 +19,87 @@ const PRODUCTS: Product[] = [
     name: 'Volume Hold Spray',
     desc: 'Strong hold finishing spray for event hairstyles.',
     price: 19.99,
+    image: '/spray.png',
   },
   {
     id: 2,
     name: 'Shine Serum',
     desc: 'Lightweight serum for glossy, frizz-free finish.',
     price: 24.5,
+    image: '/serum.png',
   },
   {
     id: 3,
     name: 'Heat Shield 230°',
     desc: 'Thermal protection spray for curling/ironing.',
     price: 17.0,
+    image: '/heatshield.png',
   },
   {
     id: 4,
     name: 'Texturizing Powder',
     desc: 'Instant root lift + volume for braids & updos.',
     price: 14.75,
+    image: '/powder.png',
   },
   {
     id: 5,
     name: 'Pro Bobby Pins (50pcs)',
     desc: 'Salon-grade matte black pins. Doesn’t slip.',
     price: 9.5,
+    image: '/pins.png',
   },
   {
     id: 6,
     name: 'Luxury Hair Comb',
     desc: 'Carbon antistatic wide-tooth styling comb.',
     price: 12.0,
+    image: '/comb.png',
   },
 ]
 
+// util keys
+const LS_CART_KEY = 'izhairtrend_cart_v1'
+
+// ---------- helpers for localStorage ----------
+function loadCartFromStorage(): CartItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(LS_CART_KEY)
+    if (!raw) return []
+    return JSON.parse(raw)
+  } catch (e) {
+    console.warn('Failed to parse cart from localStorage:', e)
+    return []
+  }
+}
+
+function saveCartToStorage(cart: CartItem[]) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(LS_CART_KEY, JSON.stringify(cart))
+  } catch (e) {
+    console.warn('Failed to save cart to localStorage:', e)
+  }
+}
+
+// ---------- main component ----------
 export default function Shop() {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [isClient, setIsClient] = useState(false)
+
+  // при первом рендере в браузере — восстановить корзину
+  useEffect(() => {
+    setIsClient(true)
+    const restored = loadCartFromStorage()
+    setCart(restored)
+  }, [])
+
+  // каждый раз когда корзина меняется — сохраняем
+  useEffect(() => {
+    if (!isClient) return
+    saveCartToStorage(cart)
+  }, [cart, isClient])
 
   function addToCart(product: Product) {
     setCart((prev) => {
@@ -92,7 +138,7 @@ export default function Shop() {
     )
   }
 
-  function remove(productId: number) {
+  function removeItem(productId: number) {
     setCart((prev) => prev.filter((item) => item.product.id !== productId))
   }
 
@@ -100,6 +146,72 @@ export default function Shop() {
     (sum, item) => sum + item.product.price * item.qty,
     0
   )
+
+  // ---------- checkout mock logic ----------
+  function handleCheckout() {
+    if (cart.length === 0) {
+      alert('Корзина пуста 🙃')
+      return
+    }
+
+    // 1) Stripe-style line_items
+    // Обычно ты отправляешь это на backend, он создаёт Stripe Checkout Session
+    const stripePayload = {
+      line_items: cart.map((item) => ({
+        name: item.product.name,
+        unit_amount: Math.round(item.product.price * 100), // cents
+        quantity: item.qty,
+        currency: 'eur',
+      })),
+      currency: 'eur',
+      total_eur: total.toFixed(2),
+    }
+
+    // 2) PayPal-style purchase_units
+    // Backend создаёт PayPal order и возвращает ссылку approve_url
+    const paypalPayload = {
+      purchase_units: [
+        {
+          amount: {
+            currency_code: 'EUR',
+            value: total.toFixed(2),
+            breakdown: {
+              item_total: {
+                currency_code: 'EUR',
+                value: total.toFixed(2),
+              },
+            },
+          },
+          items: cart.map((item) => ({
+            name: item.product.name,
+            unit_amount: {
+              currency_code: 'EUR',
+              value: item.product.price.toFixed(2),
+            },
+            quantity: String(item.qty),
+          })),
+        },
+      ],
+    }
+
+    console.log('Stripe payload →', stripePayload)
+    console.log('PayPal payload →', paypalPayload)
+
+    alert(
+      [
+        'Checkout init ✅',
+        '',
+        'Вот что мы бы отправили на сервер:',
+        '',
+        '• Stripe line_items (для createCheckoutSession)',
+        '• PayPal purchase_units (для createOrder)',
+        '',
+        'Дальше backend отвечает URL на оплату и мы делаем redirect.',
+        '',
+        'Смотри консоль браузера 👉 console.log',
+      ].join('\n')
+    )
+  }
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-10 md:py-16 flex flex-col md:flex-row gap-8 md:gap-10">
@@ -112,8 +224,8 @@ export default function Shop() {
           </span>
         </h1>
         <p className="text-white/60 mb-8 max-w-lg text-sm leading-relaxed">
-          Онлайн-магазин. Добавляй товары в корзину, смотри итоговую сумму.
-          Это демо — но логика настоящая.
+          Официальный магазин IZ HAIR TREND. Добавляй в корзину, сумма
+          сохраняется даже после перезагрузки 💅.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -122,16 +234,25 @@ export default function Shop() {
               key={p.id}
               className="group relative rounded-3xl border border-white/10 bg-white/[0.07] backdrop-blur-xl p-5 flex flex-col shadow-[0_30px_120px_-10px_rgba(255,255,255,0.15)]"
             >
-              {/* product image placeholder */}
-              <div className="rounded-2xl bg-gradient-to-br from-white/20 via-white/5 to-transparent border border-white/10 aspect-[4/3] mb-4 flex items-center justify-center text-center text-xs text-white/60 font-light tracking-wide">
-                <div className="opacity-80">
-                  <div className="text-base font-medium text-white">
-                    {p.name}
+              {/* product image */}
+              <div className="rounded-2xl bg-gradient-to-br from-white/20 via-white/5 to-transparent border border-white/10 aspect-[4/3] mb-4 flex items-center justify-center overflow-hidden">
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="w-full h-full object-contain p-4"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center text-xs text-white/60 font-light tracking-wide opacity-80">
+                    <div className="text-base font-medium text-white">
+                      {p.name}
+                    </div>
+                    <div className="text-[10px] uppercase tracking-wider text-white/40">
+                      izhairtrend
+                    </div>
                   </div>
-                  <div className="text-[10px] uppercase tracking-wider text-white/40">
-                    izhairtrend
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="flex-1 flex flex-col">
@@ -196,7 +317,7 @@ export default function Shop() {
 
                     <button
                       className="text-white/40 hover:text-white/70 text-xs"
-                      onClick={() => remove(item.product.id)}
+                      onClick={() => removeItem(item.product.id)}
                     >
                       ✕
                     </button>
@@ -233,24 +354,19 @@ export default function Shop() {
                 <div>€{total.toFixed(2)}</div>
               </div>
 
+              {/* checkout button */}
               <button
                 className="w-full relative overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium text-white bg-white/15 hover:bg-white/20 border border-white/20 backdrop-blur-xl transition-all active:scale-[0.98] shadow-[0_30px_120px_rgba(255,255,255,0.25)]"
-                onClick={() => {
-                  alert(
-                    `Checkout mock:\n\nItems: ${cart.length}\nTotal: €${total.toFixed(
-                      2
-                    )}\n\nЗдесь будет оплата (Stripe / Revolut / PayPal).`
-                  )
-                }}
+                onClick={handleCheckout}
               >
                 <span className="relative z-10 tracking-wide">
-                  Checkout
+                  Checkout (Stripe / PayPal)
                 </span>
                 <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity" />
               </button>
 
               <p className="text-[10px] text-white/40 leading-relaxed tracking-wide text-center">
-                Secure checkout · SSL · No data stored
+                Secure checkout · SSL · No card data stored on site
               </p>
             </div>
           )}
